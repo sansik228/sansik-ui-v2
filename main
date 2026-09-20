@@ -1,6 +1,6 @@
 -- Sansik UI Library v2.15
 -- Author: grod672
--- License: MIT
+-- License: MITg
 
 local SansikUI = {}
 SansikUI.__index = SansikUI
