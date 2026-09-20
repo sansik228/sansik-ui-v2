@@ -1,4 +1,4 @@
--- Sansik UI Library v2.05
+-- Sansik UI Library v2.1
 -- Author: grod672
 -- License: MIT
 
@@ -113,15 +113,17 @@ local NotifyHolder = new("Frame", {
     Size = UDim2.new(0, 320, 1, 0),
     Position = UDim2.new(1, -340, 0, 0),
     BackgroundTransparency = 1,
+    ZIndex = 100,
     Parent = ScreenGui,
 })
-NotifyHolder.Visible = true
+
 local NotifyList = new("Frame", {
     Name = "List",
     Size = UDim2.new(1, 0, 1, 0),
     Position = UDim2.new(0, 0, 1, 0),
     AnchorPoint = Vector2.new(0, 1),
     BackgroundTransparency = 1,
+    ZIndex = 100,
     Parent = NotifyHolder,
 })
 new("UIListLayout", {
@@ -141,14 +143,15 @@ function SansikUI:Notify(config)
     local text     = config.Text or ""
     local duration = config.Duration or 4
 
-    local card = new("Frame", {
-        Name = "NotifyCard",
-        Size = UDim2.new(0, 280, 0, 0),
-        BackgroundColor3 = Theme.NotifyBg,
-        BorderSizePixel = 0,
-        ClipsDescendants = true,
-        Parent = NotifyList,
-    })
+local card = new("Frame", {
+    Name = "NotifyCard",
+    Size = UDim2.new(0, 280, 0, 0),
+    BackgroundColor3 = Theme.NotifyBg,
+    BorderSizePixel = 0,
+    ClipsDescendants = true,
+    ZIndex = 101,
+    Parent = NotifyList,
+})
     corner(10, card)
     stroke(Theme.NotifyStroke, 1, card)
 
