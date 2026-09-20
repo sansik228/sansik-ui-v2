@@ -1,4 +1,4 @@
--- Sansik UI Library v2
+-- Sansik UI Library v2.05
 -- Author: grod672
 -- License: MIT
 
@@ -35,9 +35,12 @@ local Theme = {
     ToggleTrackOn   = Color3.fromRGB(28, 28, 28),
     ToggleThumbOff  = Color3.fromRGB(110, 110, 110),
     ToggleThumbOn   = Color3.fromRGB(255, 255, 255),
+    NotifyBg        = Color3.fromRGB(15, 15, 15),
+    NotifyStroke    = Color3.fromRGB(45, 45, 45),
     Font            = Enum.Font.Gotham,
     FontBold        = Enum.Font.GothamBold,
 }
+
 --============================================================
 -- Helpers
 --============================================================
@@ -103,6 +106,113 @@ local ScreenGui = new("ScreenGui", {
 })
 
 --============================================================
+-- Notification container (bottom-right of viewport)
+--============================================================
+local NotifyHolder = new("Frame", {
+    Name = "Notifications",
+    Size = UDim2.new(0, 320, 1, 0),
+    Position = UDim2.new(1, -340, 0, 0),
+    BackgroundTransparency = 1,
+    Parent = ScreenGui,
+})
+NotifyHolder.Visible = true
+local NotifyList = new("Frame", {
+    Name = "List",
+    Size = UDim2.new(1, 0, 1, 0),
+    Position = UDim2.new(0, 0, 1, 0),
+    AnchorPoint = Vector2.new(0, 1),
+    BackgroundTransparency = 1,
+    Parent = NotifyHolder,
+})
+new("UIListLayout", {
+    Padding = UDim.new(0, 8),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+    VerticalAlignment = Enum.VerticalAlignment.Bottom,
+    HorizontalAlignment = Enum.HorizontalAlignment.Right,
+    Parent = NotifyList,
+})
+
+--============================================================
+-- Public: Notify
+--============================================================
+function SansikUI:Notify(config)
+    config = config or {}
+    local title    = config.Title or "Notification"
+    local text     = config.Text or ""
+    local duration = config.Duration or 4
+
+    local card = new("Frame", {
+        Name = "NotifyCard",
+        Size = UDim2.new(0, 280, 0, 0),
+        BackgroundColor3 = Theme.NotifyBg,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = NotifyList,
+    })
+    corner(10, card)
+    stroke(Theme.NotifyStroke, 1, card)
+
+    local titleLbl = new("TextLabel", {
+        Name = "Title",
+        Size = UDim2.new(1, -28, 0, 20),
+        Position = UDim2.fromOffset(14, 10),
+        BackgroundTransparency = 1,
+        Font = Theme.FontBold,
+        Text = title,
+        TextColor3 = Theme.Text,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+
+    local textLbl = new("TextLabel", {
+        Name = "Text",
+        Size = UDim2.new(1, -28, 0, 16),
+        Position = UDim2.fromOffset(14, 30),
+        BackgroundTransparency = 1,
+        Font = Theme.Font,
+        Text = text,
+        TextColor3 = Theme.TextDim,
+        TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+
+    -- accent line on left
+    new("Frame", {
+        Name = "Accent",
+        Size = UDim2.new(0, 3, 1, -16),
+        Position = UDim2.fromOffset(4, 8),
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel = 0,
+        Parent = card,
+    })
+
+    local targetHeight = (text ~= "" and 58 or 40)
+
+    -- slide-in + expand animation
+    card.Position = UDim2.new(1, 60, 0, 0)
+    card.Size = UDim2.new(0, 280, 0, 0)
+    tween(card, {
+        Position = UDim2.new(0, 0, 0, 0),
+        Size = UDim2.new(0, 280, 0, targetHeight),
+    }, 0.28)
+
+    -- auto dismiss
+    task.delay(duration, function()
+        if not card.Parent then return end
+        tween(card, {
+            Position = UDim2.new(1, 60, 0, 0),
+            Size = UDim2.new(0, 280, 0, 0),
+        }, 0.25)
+        task.wait(0.3)
+        if card.Parent then card:Destroy() end
+    end)
+
+    return card
+end
+
+--============================================================
 -- Window
 --============================================================
 function SansikUI:CreateWindow(config)
@@ -117,6 +227,8 @@ function SansikUI:CreateWindow(config)
     Window._activeTab = nil
     Window._connections = {}
     Window._keybind = toggleKey
+    Window._closed = false
+    Window._minimized = false
 
     local localTheme = setmetatable({
         Accent = accentColor,
@@ -195,6 +307,7 @@ function SansikUI:CreateWindow(config)
     local MinBtn   = makeCtrlButton("-", 1)
     local CloseBtn = makeCtrlButton("x", 2)
 
+    -- Dragging
     do
         local dragging, dragStart, startPos
         TitleBar.InputBegan:Connect(function(input)
@@ -251,22 +364,68 @@ function SansikUI:CreateWindow(config)
         Parent = Main,
     })
 
-    local minimized = false
+    --========================================================
+    -- Open / Close with animation
+    --========================================================
+    local function openWindow()
+        Window._closed = false
+        Main.Visible = true
+        Main.Size = UDim2.fromOffset(0, 0)
+        Main.Position = UDim2.new(0.5, 0, 0.5, 0)
+        tween(Main, {
+            Size = UDim2.fromOffset(520, 380),
+            Position = UDim2.new(0.5, -260, 0.5, -190),
+        }, 0.25)
+    end
+
+    local function closeWindow()
+        if Window._closed then return end
+        Window._closed = true
+
+        -- shrink toward center, then hide
+        tween(Main, {
+            Size = UDim2.fromOffset(0, 0),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+        }, 0.25)
+
+        task.delay(0.27, function()
+            if Window._closed then
+                Main.Visible = false
+            end
+        end)
+    end
+
+    local function toggleWindow()
+        if Window._closed or not Main.Visible then
+            openWindow()
+        else
+            closeWindow()
+        end
+    end
+
+    -- Minimize (just collapse vertically)
     MinBtn.MouseButton1Click:Connect(function()
-        minimized = not minimized
-        tween(Main, { Size = minimized and UDim2.fromOffset(520, 40) or UDim2.fromOffset(520, 380) })
+        if Window._closed then return end
+        Window._minimized = not Window._minimized
+        if Window._minimized then
+            tween(Main, { Size = UDim2.fromOffset(520, 40) }, 0.2)
+        else
+            tween(Main, { Size = UDim2.fromOffset(520, 380) }, 0.2)
+        end
     end)
-    CloseBtn.MouseButton1Click:Connect(function()
-        ScreenGui.Enabled = false
-    end)
+
+    CloseBtn.MouseButton1Click:Connect(closeWindow)
 
     UserInputService.InputBegan:Connect(function(input, gp)
         if gp then return end
         if input.KeyCode == Window._keybind then
-            ScreenGui.Enabled = not ScreenGui.Enabled
+            toggleWindow()
         end
     end)
 
+    --========================================================
+    -- Tab
+    --========================================================
     function Window:CreateTab(tabConfig)
         tabConfig = tabConfig or {}
         local tabName = tabConfig.Name or "Tab"
@@ -424,9 +583,7 @@ function SansikUI:CreateWindow(config)
             return btn
         end
 
-        --========================================================
         -- Toggle (no colored track; thumb changes color)
-        --========================================================
         function tabData:CreateToggle(cfg)
             cfg = cfg or {}
             local state = cfg.Default or false
@@ -479,9 +636,7 @@ function SansikUI:CreateWindow(config)
             return { Set = apply, Get = function() return state end }
         end
 
-        --========================================================
-        -- Slider (with visible track + green fill)
-        --========================================================
+        -- Slider (visible track + white fill)
         function tabData:CreateSlider(cfg)
             cfg = cfg or {}
             local min      = cfg.Min or 0
@@ -506,7 +661,6 @@ function SansikUI:CreateWindow(config)
                 Parent = row,
             })
 
-            -- visible track
             local track = new("Frame", {
                 Name = "Track",
                 Size = UDim2.new(1, -28, 0, 6),
@@ -747,8 +901,15 @@ function SansikUI:CreateWindow(config)
         return tabData
     end
 
+    function Window:Open()  openWindow()  end
+    function Window:Close() closeWindow() end
+
     function Window:Toggle(visible)
-        ScreenGui.Enabled = (visible ~= false)
+        if visible == false then
+            closeWindow()
+        else
+            openWindow()
+        end
     end
 
     function Window:SetKeybind(key)
