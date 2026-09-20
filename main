@@ -1,4 +1,4 @@
--- Sansik UI Library v2.1
+-- Sansik UI Library v2.15
 -- Author: grod672
 -- License: MIT
 
@@ -110,13 +110,12 @@ local ScreenGui = new("ScreenGui", {
 --============================================================
 local NotifyHolder = new("Frame", {
     Name = "Notifications",
-    Size = UDim2.new(0, 320, 1, 0),
+    Size = UDim2.new(0, 320, 1, -100),      -- было 1,0
     Position = UDim2.new(1, -340, 0, 0),
     BackgroundTransparency = 1,
     ZIndex = 100,
     Parent = ScreenGui,
 })
-
 local NotifyList = new("Frame", {
     Name = "List",
     Size = UDim2.new(1, 0, 1, 0),
