@@ -16,24 +16,28 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 --============================================================
--- Theme (default: black)
+-- Theme (black & white)
 --============================================================
 local Theme = {
     Background      = Color3.fromRGB(0, 0, 0),
-    BackgroundAlt   = Color3.fromRGB(10, 10, 10),
-    Element         = Color3.fromRGB(18, 18, 18),
-    ElementHover    = Color3.fromRGB(28, 28, 28),
-    Accent          = Color3.fromRGB(0, 200, 80),
-    AccentHover     = Color3.fromRGB(0, 230, 100),
+    BackgroundAlt   = Color3.fromRGB(12, 12, 12),
+    Element         = Color3.fromRGB(20, 20, 20),
+    ElementHover    = Color3.fromRGB(30, 30, 30),
+    Accent          = Color3.fromRGB(255, 255, 255),
+    AccentHover     = Color3.fromRGB(220, 220, 220),
     Text            = Color3.fromRGB(235, 235, 235),
     TextDim         = Color3.fromRGB(150, 150, 150),
     Stroke          = Color3.fromRGB(40, 40, 40),
-    SliderEmpty     = Color3.fromRGB(0, 0, 0),
-    SliderFill      = Color3.fromRGB(0, 220, 90),
+    SliderTrack     = Color3.fromRGB(30, 30, 30),
+    SliderFill      = Color3.fromRGB(255, 255, 255),
+    SliderThumb     = Color3.fromRGB(255, 255, 255),
+    ToggleTrackOff  = Color3.fromRGB(28, 28, 28),
+    ToggleTrackOn   = Color3.fromRGB(28, 28, 28),
+    ToggleThumbOff  = Color3.fromRGB(110, 110, 110),
+    ToggleThumbOn   = Color3.fromRGB(255, 255, 255),
     Font            = Enum.Font.Gotham,
     FontBold        = Enum.Font.GothamBold,
 }
-
 --============================================================
 -- Helpers
 --============================================================
@@ -77,14 +81,6 @@ local function tween(inst, props, time)
     return t
 end
 
-local function lerpColor(a, b, t)
-    return Color3.new(
-        a.R + (b.R - a.R) * t,
-        a.G + (b.G - a.G) * t,
-        a.B + (b.B - a.B) * t
-    )
-end
-
 --============================================================
 -- ScreenGui setup
 --============================================================
@@ -122,7 +118,10 @@ function SansikUI:CreateWindow(config)
     Window._connections = {}
     Window._keybind = toggleKey
 
-    local localTheme = setmetatable({ Accent = accentColor, AccentHover = accentColor:Lerp(Color3.new(1,1,1), 0.15) }, { __index = Theme })
+    local localTheme = setmetatable({
+        Accent = accentColor,
+        AccentHover = accentColor:Lerp(Color3.new(1,1,1), 0.15),
+    }, { __index = Theme })
 
     -- Main frame
     local Main = new("Frame", {
@@ -159,7 +158,6 @@ function SansikUI:CreateWindow(config)
         Parent = TitleBar,
     })
 
-    -- Window controls
     local Controls = new("Frame", {
         Name = "Controls",
         Size = UDim2.fromOffset(80, 40),
@@ -197,7 +195,6 @@ function SansikUI:CreateWindow(config)
     local MinBtn   = makeCtrlButton("-", 1)
     local CloseBtn = makeCtrlButton("x", 2)
 
-    -- Dragging
     do
         local dragging, dragStart, startPos
         TitleBar.InputBegan:Connect(function(input)
@@ -226,7 +223,6 @@ function SansikUI:CreateWindow(config)
         end)
     end
 
-    -- Sidebar
     local Sidebar = new("Frame", {
         Name = "Sidebar",
         Size = UDim2.new(0, 160, 1, -52),
@@ -247,7 +243,6 @@ function SansikUI:CreateWindow(config)
         Parent = TabList,
     })
 
-    -- Content
     local Content = new("Frame", {
         Name = "Content",
         Size = UDim2.new(1, -196, 1, -52),
@@ -272,9 +267,6 @@ function SansikUI:CreateWindow(config)
         end
     end)
 
-    --========================================================
-    -- Tab
-    --========================================================
     function Window:CreateTab(tabConfig)
         tabConfig = tabConfig or {}
         local tabName = tabConfig.Name or "Tab"
@@ -432,7 +424,9 @@ function SansikUI:CreateWindow(config)
             return btn
         end
 
-        -- Toggle
+        --========================================================
+        -- Toggle (no colored track; thumb changes color)
+        --========================================================
         function tabData:CreateToggle(cfg)
             cfg = cfg or {}
             local state = cfg.Default or false
@@ -441,32 +435,34 @@ function SansikUI:CreateWindow(config)
 
             local track = new("Frame", {
                 Name = "Track",
-                Size = UDim2.fromOffset(36, 18),
-                Position = UDim2.new(1, -50, 0.5, -9),
-                BackgroundColor3 = localTheme.ElementHover,
+                Size = UDim2.fromOffset(40, 22),
+                Position = UDim2.new(1, -54, 0.5, -11),
+                BackgroundColor3 = localTheme.ToggleTrackOff,
+                BorderSizePixel = 0,
                 Parent = row,
             })
-            corner(9, track)
-            stroke(localTheme.Stroke, 1, track)
+            corner(11, track)
+            local trackStroke = stroke(localTheme.Stroke, 1, track)
 
             local thumb = new("Frame", {
                 Name = "Thumb",
-                Size = UDim2.fromOffset(14, 14),
-                Position = UDim2.fromOffset(2, 2),
-                BackgroundColor3 = localTheme.TextDim,
+                Size = UDim2.fromOffset(16, 16),
+                Position = state and UDim2.fromOffset(21, 3) or UDim2.fromOffset(3, 3),
+                BackgroundColor3 = state and localTheme.ToggleThumbOn or localTheme.ToggleThumbOff,
+                BorderSizePixel = 0,
                 Parent = track,
             })
-            corner(7, thumb)
+            corner(8, thumb)
 
             local function apply(v)
                 state = v
                 tween(thumb, {
-                    Position = state and UDim2.fromOffset(20, 2) or UDim2.fromOffset(2, 2),
-                    BackgroundColor3 = state and localTheme.Accent or localTheme.TextDim,
-                })
-                tween(track, {
-                    BackgroundColor3 = state and localTheme.Accent or localTheme.ElementHover,
-                })
+                    Position = state and UDim2.fromOffset(21, 3) or UDim2.fromOffset(3, 3),
+                    BackgroundColor3 = state and localTheme.ToggleThumbOn or localTheme.ToggleThumbOff,
+                }, 0.12)
+                tween(trackStroke, {
+                    Color = state and localTheme.ToggleThumbOn or localTheme.Stroke,
+                }, 0.12)
                 if cfg.Flag then Window.Flags[cfg.Flag] = state end
                 if cfg.Callback then cfg.Callback(state) end
             end
@@ -484,7 +480,7 @@ function SansikUI:CreateWindow(config)
         end
 
         --========================================================
-        -- Slider (reworked)
+        -- Slider (with visible track + green fill)
         --========================================================
         function tabData:CreateSlider(cfg)
             cfg = cfg or {}
@@ -497,7 +493,6 @@ function SansikUI:CreateWindow(config)
             local row = makeRow(52)
             makeLabel(row, cfg.Name or "Slider")
 
-            -- Value text (no background)
             local valueLabel = new("TextLabel", {
                 Name = "Value",
                 Size = UDim2.fromOffset(80, 20),
@@ -511,19 +506,18 @@ function SansikUI:CreateWindow(config)
                 Parent = row,
             })
 
-            -- Slider bar (track)
+            -- visible track
             local track = new("Frame", {
                 Name = "Track",
-                Size = UDim2.new(1, -28, 0, 8),
+                Size = UDim2.new(1, -28, 0, 6),
                 Position = UDim2.new(0, 14, 1, -18),
-                BackgroundColor3 = localTheme.SliderEmpty,
+                BackgroundColor3 = localTheme.SliderTrack,
                 BorderSizePixel = 0,
                 Parent = row,
             })
-            corner(4, track)
+            corner(3, track)
             stroke(localTheme.Stroke, 1, track)
 
-            -- Fill bar (green)
             local fill = new("Frame", {
                 Name = "Fill",
                 Size = UDim2.new(0, 0, 1, 0),
@@ -531,33 +525,25 @@ function SansikUI:CreateWindow(config)
                 BorderSizePixel = 0,
                 Parent = track,
             })
-            corner(4, fill)
+            corner(3, fill)
 
-            -- Thumb (circle)
             local thumb = new("Frame", {
                 Name = "Thumb",
-                Size = UDim2.fromOffset(16, 16),
-                Position = UDim2.new(0, 0, 0.5, -8),
-                BackgroundColor3 = localTheme.SliderFill,
+                Size = UDim2.fromOffset(12, 12),
+                Position = UDim2.new(0, -6, 0.5, -6),
+                BackgroundColor3 = localTheme.SliderThumb,
                 BorderSizePixel = 0,
                 ZIndex = 3,
                 Parent = track,
             })
-            corner(8, thumb)
+            corner(6, thumb)
 
             local function setValue(v, fire)
                 value = math.clamp(v, min, max)
                 local alpha = (max > min) and (value - min) / (max - min) or 0
 
-                -- fill width
-                tween(fill, { Size = UDim2.new(alpha, 0, 1, 0) }, 0.08)
-                -- thumb position
-                tween(thumb, { Position = UDim2.new(alpha, -8, 0.5, -8) }, 0.08)
-
-                -- color: black -> green based on alpha
-                local col = lerpColor(localTheme.SliderEmpty, localTheme.SliderFill, alpha)
-                thumb.BackgroundColor3 = col
-                fill.BackgroundColor3 = col
+                tween(fill,  { Size = UDim2.new(alpha, 0, 1, 0) }, 0.08)
+                tween(thumb, { Position = UDim2.new(alpha, -6, 0.5, -6) }, 0.08)
 
                 local rounded = decimals > 0
                     and tonumber(string.format("%." .. decimals .. "f", value))
@@ -571,7 +557,6 @@ function SansikUI:CreateWindow(config)
 
             setValue(value, false)
 
-            -- Input area
             local dragBtn = new("TextButton", {
                 Name = "DragArea",
                 Size = UDim2.new(1, 0, 1, 0),
@@ -742,7 +727,6 @@ function SansikUI:CreateWindow(config)
             }
         end
 
-        -- Label
         function tabData:CreateLabel(cfg)
             cfg = cfg or {}
             local row = makeRow(30)
