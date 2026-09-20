@@ -1,5 +1,5 @@
--- Sansik UI Library
--- Author: (your name)
+-- Sansik UI Library v2
+-- Author: grod672
 -- License: MIT
 
 local SansikUI = {}
@@ -16,18 +16,20 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 --============================================================
--- Theme
+-- Theme (default: black)
 --============================================================
 local Theme = {
-    Background      = Color3.fromRGB(30, 27, 38),
-    BackgroundAlt   = Color3.fromRGB(38, 34, 48),
-    Element         = Color3.fromRGB(45, 40, 58),
-    ElementHover    = Color3.fromRGB(54, 48, 70),
-    Accent          = Color3.fromRGB(155, 105, 220),
-    AccentHover     = Color3.fromRGB(170, 125, 235),
-    Text            = Color3.fromRGB(235, 232, 245),
-    TextDim         = Color3.fromRGB(150, 145, 165),
-    Stroke          = Color3.fromRGB(60, 54, 76),
+    Background      = Color3.fromRGB(0, 0, 0),
+    BackgroundAlt   = Color3.fromRGB(10, 10, 10),
+    Element         = Color3.fromRGB(18, 18, 18),
+    ElementHover    = Color3.fromRGB(28, 28, 28),
+    Accent          = Color3.fromRGB(0, 200, 80),
+    AccentHover     = Color3.fromRGB(0, 230, 100),
+    Text            = Color3.fromRGB(235, 235, 235),
+    TextDim         = Color3.fromRGB(150, 150, 150),
+    Stroke          = Color3.fromRGB(40, 40, 40),
+    SliderEmpty     = Color3.fromRGB(0, 0, 0),
+    SliderFill      = Color3.fromRGB(0, 220, 90),
     Font            = Enum.Font.Gotham,
     FontBold        = Enum.Font.GothamBold,
 }
@@ -75,6 +77,14 @@ local function tween(inst, props, time)
     return t
 end
 
+local function lerpColor(a, b, t)
+    return Color3.new(
+        a.R + (b.R - a.R) * t,
+        a.G + (b.G - a.G) * t,
+        a.B + (b.B - a.B) * t
+    )
+end
+
 --============================================================
 -- ScreenGui setup
 --============================================================
@@ -112,7 +122,7 @@ function SansikUI:CreateWindow(config)
     Window._connections = {}
     Window._keybind = toggleKey
 
-    local localTheme = setmetatable({ Accent = accentColor }, { __index = Theme })
+    local localTheme = setmetatable({ Accent = accentColor, AccentHover = accentColor:Lerp(Color3.new(1,1,1), 0.15) }, { __index = Theme })
 
     -- Main frame
     local Main = new("Frame", {
@@ -405,7 +415,7 @@ function SansikUI:CreateWindow(config)
                 BackgroundTransparency = 1,
                 Font = localTheme.Font,
                 Text = cfg.Text or "button",
-                TextColor3 = localTheme.TextDim,
+                TextColor3 = Color3.fromRGB(0, 0, 0),
                 TextSize = 12,
                 Parent = btn,
             })
@@ -473,7 +483,9 @@ function SansikUI:CreateWindow(config)
             return { Set = apply, Get = function() return state end }
         end
 
-        -- Slider
+        --========================================================
+        -- Slider (reworked)
+        --========================================================
         function tabData:CreateSlider(cfg)
             cfg = cfg or {}
             local min      = cfg.Min or 0
@@ -482,35 +494,84 @@ function SansikUI:CreateWindow(config)
             local suffix   = cfg.Suffix or ""
             local decimals = cfg.Decimals or 0
 
-            local row = makeRow(38)
+            local row = makeRow(52)
             makeLabel(row, cfg.Name or "Slider")
 
-            local valueBox = new("TextLabel", {
+            -- Value text (no background)
+            local valueLabel = new("TextLabel", {
                 Name = "Value",
-                Size = UDim2.fromOffset(70, 22),
-                Position = UDim2.new(1, -84, 0.5, -11),
-                BackgroundColor3 = localTheme.Accent,
+                Size = UDim2.fromOffset(80, 20),
+                Position = UDim2.new(1, -94, 0, 8),
+                BackgroundTransparency = 1,
                 Font = localTheme.Font,
-                Text = tostring(value) .. " " .. suffix,
+                Text = "",
                 TextColor3 = localTheme.Text,
                 TextSize = 12,
+                TextXAlignment = Enum.TextXAlignment.Right,
                 Parent = row,
             })
-            corner(6, valueBox)
-            stroke(localTheme.AccentHover, 1, valueBox)
+
+            -- Slider bar (track)
+            local track = new("Frame", {
+                Name = "Track",
+                Size = UDim2.new(1, -28, 0, 8),
+                Position = UDim2.new(0, 14, 1, -18),
+                BackgroundColor3 = localTheme.SliderEmpty,
+                BorderSizePixel = 0,
+                Parent = row,
+            })
+            corner(4, track)
+            stroke(localTheme.Stroke, 1, track)
+
+            -- Fill bar (green)
+            local fill = new("Frame", {
+                Name = "Fill",
+                Size = UDim2.new(0, 0, 1, 0),
+                BackgroundColor3 = localTheme.SliderFill,
+                BorderSizePixel = 0,
+                Parent = track,
+            })
+            corner(4, fill)
+
+            -- Thumb (circle)
+            local thumb = new("Frame", {
+                Name = "Thumb",
+                Size = UDim2.fromOffset(16, 16),
+                Position = UDim2.new(0, 0, 0.5, -8),
+                BackgroundColor3 = localTheme.SliderFill,
+                BorderSizePixel = 0,
+                ZIndex = 3,
+                Parent = track,
+            })
+            corner(8, thumb)
 
             local function setValue(v, fire)
                 value = math.clamp(v, min, max)
+                local alpha = (max > min) and (value - min) / (max - min) or 0
+
+                -- fill width
+                tween(fill, { Size = UDim2.new(alpha, 0, 1, 0) }, 0.08)
+                -- thumb position
+                tween(thumb, { Position = UDim2.new(alpha, -8, 0.5, -8) }, 0.08)
+
+                -- color: black -> green based on alpha
+                local col = lerpColor(localTheme.SliderEmpty, localTheme.SliderFill, alpha)
+                thumb.BackgroundColor3 = col
+                fill.BackgroundColor3 = col
+
                 local rounded = decimals > 0
                     and tonumber(string.format("%." .. decimals .. "f", value))
                     or math.floor(value + 0.5)
-                valueBox.Text = tostring(rounded) .. " " .. suffix
+
+                valueLabel.Text = tostring(rounded) .. (suffix ~= "" and (" " .. suffix) or "")
+
                 if cfg.Flag then Window.Flags[cfg.Flag] = rounded end
                 if fire and cfg.Callback then cfg.Callback(rounded) end
             end
 
             setValue(value, false)
 
+            -- Input area
             local dragBtn = new("TextButton", {
                 Name = "DragArea",
                 Size = UDim2.new(1, 0, 1, 0),
@@ -518,10 +579,11 @@ function SansikUI:CreateWindow(config)
                 Text = "",
                 Parent = row,
             })
+            dragBtn.ZIndex = 5
 
             local dragging = false
             local function updateFromInput(input)
-                local rel = math.clamp((input.Position.X - row.AbsolutePosition.X) / row.AbsoluteSize.X, 0, 1)
+                local rel = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
                 setValue(min + (max - min) * rel, true)
             end
 
